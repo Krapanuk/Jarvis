@@ -34,12 +34,19 @@ def listen():
 
 def query_llm(text):
     global dialog_history
-    dialog_history.append(text)  # Füge den gesprochenen Text dem Dialogverlauf hinzu
-    url = 'http://localhost:11434/api/generate'
+    if not dialog_history:  # Überprüfe, ob der Dialogverlauf leer ist und füge ggf. die Systemnachricht hinzu
+        system_message = {"role": "system", "content": "Du bist mein privater Chatbot-Assistent namens Jarvis. Bitte antworte auf alle meine Eingaben kurz und knapp immer in deutscher Sprache."}
+        dialog_history.append(system_message)
+
+    dialog_history.append({"role": "user", "content": text})  # Füge den gesprochenen Text als Benutzer-Nachricht hinzu
+    
+    url = 'http://localhost:11434/api/chat'
     headers = {'Content-Type': 'application/json'}
     data = {
         "model": "llama3",
-        "prompt": " ".join(dialog_history)  # Übergebe den gesamten Dialogverlauf als Prompt
+        #"model": "phi3",
+        "messages": dialog_history,
+        "stream": True
     }
     json_data = json.dumps(data)
     
@@ -51,15 +58,16 @@ def query_llm(text):
             for line in response.iter_lines():
                 if line:
                     decoded_line = json.loads(line.decode('utf-8'))
-                    response_text = decoded_line.get('response', '')
-                    if response_text and response_text.strip():  # Überprüfe ob response_text nicht leer ist
+                    if decoded_line.get("done", False):
+                        break  # Beende das Lesen von Daten, wenn die finale Nachricht erhalten wurde
+                    response_text = decoded_line.get('message', {}).get('content', '')
+                    if response_text and response_text.strip():
                         full_sentence += response_text
-                        # Stelle sicher, dass response_text nicht nur aus Leerzeichen besteht
-                        if response_text.strip() and response_text.strip()[-1] in ".!?":
+                        if response_text.strip()[-1] in ".!?":  # Prüfe das Ende eines Satzes
                             print(full_sentence)
                             speak(full_sentence)
-                            dialog_history.append(full_sentence)  # Füge die Antwort des LLM dem Dialogverlauf hinzu
-                            full_sentence = ""  # Setze für den nächsten Satz zurück
+                            dialog_history.append({"role": "assistant", "content": full_sentence})  # Füge die Antwort des Assistenten hinzu
+                            full_sentence = ""
         except json.JSONDecodeError as e:
             print("Fehler beim Parsen der JSON-Antwort:", e)
         except IndexError as e:
