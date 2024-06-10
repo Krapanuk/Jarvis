@@ -9,9 +9,15 @@ recognizer = sr.Recognizer()
 # Initialisiere Text-to-Speech mit der spezifischen Stimme "Microsoft Hedda Desktop - German"
 tts_engine = pyttsx3.init()
 voices = tts_engine.getProperty('voices')
+voice_found = False
 for voice in voices:
     if 'Hedda' in voice.name:  # Suche nach der Stimme "Microsoft Hedda Desktop - German"
         tts_engine.setProperty('voice', voice.id)
+        voice_found = True
+        break
+
+if not voice_found:
+    print("Stimme 'Microsoft Hedda Desktop - German' nicht gefunden. Verwende Standardstimme.")
 
 # Ein einfacher Kontext-Speicher, der den Dialogverlauf hält
 dialog_history = []
@@ -77,6 +83,7 @@ def query_llm(text):
 
 def speak(text):
     if text:
+        print(f"Speaking: {text}")  # Debug-Ausgabe, um sicherzustellen, dass der Text korrekt ankommt
         tts_engine.say(text)
         tts_engine.runAndWait()
 
